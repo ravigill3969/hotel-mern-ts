@@ -12,53 +12,12 @@ const router = express.Router();
 
 const stripe = new Stripe(process.env.STRIPE_API_KEY as string);
 
-
-router.post(
-  "/:hotelId/bookings/payment-intent",
-  verifyToken,
-  async (req: Request, res: Response) => {
-    const { numberOfNights } = req.body;
-
-    const hotelId = req.params.hotelId;
-
-    const hotel = await Hotel.findById(hotelId);
-    if (!hotel) {
-      return res.status(404).json({ message: "Hotel not found" });
-    }
-    const totalCost = Number(numberOfNights) * hotel.pricePerNight * 100;
-
-   
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalCost,
-      currency: "usd",
-      metadata: {
-        hotelId,
-        userId: req.userId ? String(req.userId) : "",
-      },
-    });
-
-    if (!paymentIntent.client_secret) {
-      return res.status(500).json({ message: "Something went wrong" });
-    }
-
-    const response = {
-      clientSecret: paymentIntent.client_secret.toString(),
-      paymentIntentId: paymentIntent.id,
-      totalCost,
-    };
-
-    // console.log(response);
-
-    res.send(response);
-  }
-);
-
 router.post(
   "/:hotelId/bookings",
   verifyToken,
   async (req: Request, res: Response) => {
     try {
+      console.log(req.body);
       const paymentIntentId = req.body.paymentIntentId;
 
       const paymwentIntent = await stripe.paymentIntents.retrieve(
@@ -230,5 +189,43 @@ router.get(
   }
 );
 
+router.post(
+  "/:hotelId/bookings/payment-intent",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    const { numberOfNights } = req.body;
+
+    const hotelId = req.params.hotelId;
+
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+      return res.status(404).json({ message: "Hotel not found" });
+    }
+    const totalCost = Number(numberOfNights) * hotel.pricePerNight * 100;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalCost,
+      currency: "usd",
+      metadata: {
+        hotelId,
+        userId: req.userId ? String(req.userId) : "",
+      },
+    });
+
+    if (!paymentIntent.client_secret) {
+      return res.status(500).json({ message: "Something went wrong" });
+    }
+
+    const response = {
+      clientSecret: paymentIntent.client_secret.toString(),
+      paymentIntentId: paymentIntent.id,
+      totalCost,
+    };
+
+    // console.log(response);
+
+    res.send(response);
+  }
+);
 
 export default router;
