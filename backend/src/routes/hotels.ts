@@ -1,11 +1,113 @@
 import express, { Request, Response } from "express";
 import Hotel from "../models/hotel";
-import { HotelSearchResponse } from "../shared/types";
+import { BookingType, HotelSearchResponse } from "../shared/types";
 import { param, validationResult } from "express-validator";
+import Stripe from "stripe";
+import { verifyToken } from "../middleware/auth";
+import dotenv from "dotenv";
+
+dotenv.config();
 
 const router = express.Router();
 
+const stripe = new Stripe(process.env.STRIPE_API_KEY as string);
 
+
+router.post(
+  "/:hotelId/bookings/payment-intent",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    const { numberOfNights } = req.body;
+
+    const hotelId = req.params.hotelId;
+
+    const hotel = await Hotel.findById(hotelId);
+    if (!hotel) {
+      return res.status(404).json({ message: "Hotel not found" });
+    }
+    const totalCost = Number(numberOfNights) * hotel.pricePerNight * 100;
+
+   
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: totalCost,
+      currency: "usd",
+      metadata: {
+        hotelId,
+        userId: req.userId ? String(req.userId) : "",
+      },
+    });
+
+    if (!paymentIntent.client_secret) {
+      return res.status(500).json({ message: "Something went wrong" });
+    }
+
+    const response = {
+      clientSecret: paymentIntent.client_secret.toString(),
+      paymentIntentId: paymentIntent.id,
+      totalCost,
+    };
+
+    // console.log(response);
+
+    res.send(response);
+  }
+);
+
+router.post(
+  "/:hotelId/bookings",
+  verifyToken,
+  async (req: Request, res: Response) => {
+    try {
+      const paymentIntentId = req.body.paymentIntentId;
+
+      const paymwentIntent = await stripe.paymentIntents.retrieve(
+        paymentIntentId as string
+      );
+      if (!paymwentIntent) {
+        return res.status(404).json({ message: "Payment intent not found" });
+      }
+
+      if (
+        paymwentIntent.metadata.hotelId !== req.params.hotelId ||
+        paymwentIntent.metadata.userId !== req.userId?.toString()
+      ) {
+        return res.status(400).json({ message: "Invalid payment intent" });
+      }
+
+      if (paymwentIntent.status !== "succeeded") {
+        return res.status(400).json({
+          message: `Payment intent not succeeded. Status: ${paymwentIntent.status}`,
+        });
+      }
+
+      const newBooking: BookingType = {
+        ...req.body,
+        userId: req.userId,
+      };
+
+      const hotel = await Hotel.findOneAndUpdate(
+        { _id: req.params.hotelId },
+        {
+          $push: {
+            bookings: newBooking,
+          },
+        }
+      );
+
+      if (!hotel) {
+        return res.status(404).json({ message: "Hotel not found" });
+      }
+
+      await hotel.save();
+
+      res.status(200).send();
+    } catch (error) {
+      console.log("error", error);
+      res.status(500).json({ message: "Something went wrong" });
+    }
+  }
+);
 
 router.get("/search", async (req: Request, res: Response) => {
   try {
@@ -108,7 +210,6 @@ const constructSearchQuery = (queryParams: any) => {
   return constructedQuery;
 };
 
-
 router.get(
   "/:id",
   [param("id").notEmpty().withMessage("Hotel ID is required")],
@@ -128,5 +229,6 @@ router.get(
     }
   }
 );
+
 
 export default router;
