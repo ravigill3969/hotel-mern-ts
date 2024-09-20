@@ -53,7 +53,7 @@ test("should display hotels list", async ({ page }) => {
   await expect(page.getByText("wqert,wqfegrtqwefrgt")).toBeVisible();
   await expect(page.getByText("Boutique Hotel")).toBeVisible();
   await expect(page.getByText("$2 per night")).toBeVisible();
-  await expect(page.getByText("2 adults, 2 child")).toBeVisible();
+  await expect(page.getByText("2 adults, 2 child").first()).toBeVisible();
   await expect(page.getByText("2 start rating")).toBeVisible();
 
   await expect(page.getByRole("link", { name: "View Details" }).first()).toBeVisible();

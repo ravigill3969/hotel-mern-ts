@@ -29,7 +29,7 @@ test("should show hotel detail", async ({ page }) => {
     await page.goto(UI_URL);
     
     
-  await page.getByPlaceholder("Where are you going?").fill("Dublin");
+  await page.getByPlaceholder("Where are you going?").fill("wqert");
   await page.getByRole("button", { name: "Search" }).click();
 
   await page.getByText("Dublin Getaways").click();
