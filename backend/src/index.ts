@@ -10,6 +10,7 @@ import {v2 as cloudinary} from "cloudinary";
 import userRoutes from "./routes/users";
 import authRoutes from "./routes/auth";
 import myHotelsRoutes from "./routes/my-hotels";
+import hotelsRoutes from "./routes/hotels";
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use(express.static(path.join(__dirname, "../../frontend/dist")));
 app.use("/api/users", userRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/my-hotels", myHotelsRoutes);
+app.use("/api/hotels", hotelsRoutes);
 
 
 app.get("*", (req: Request, res: Response) => {
